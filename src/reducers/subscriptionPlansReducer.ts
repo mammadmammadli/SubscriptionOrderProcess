@@ -1,15 +1,36 @@
-import { Reducer } from "redux";
 import { IAsync } from "../models";
 import { TSubscriptionPlansReducer } from "../models/reducerModels";
+import { subscriptionPlansRoutine } from '../routines/subscriptionPlansRoutines';
 
 const initialState: IAsync<TSubscriptionPlansReducer> = {
-    data: null,
-    status: "IDLE",
-    error: null,
+	data: null,
+	status: "IDLE",
+	error: null,
 }
 
 export const subscriptionPlansReducer = (
-    state = initialState,
+	state = initialState,
+	action: { type: string, payload?: any },
 ): IAsync<TSubscriptionPlansReducer> => {
-    return state;
+	switch (action.type) {
+		case subscriptionPlansRoutine.SUCCESS:
+			return {
+				...state,
+				data: action.payload,
+				status: "SUCCESS",
+			}
+		case subscriptionPlansRoutine.FAILURE:
+			return {
+				...state,
+				error: action.payload,
+				status: "ERROR",
+			}
+		case subscriptionPlansRoutine.REQUEST:
+			return {
+				...state,
+				status: "PENDING"
+			}
+		default:
+			return state;
+	}
 }

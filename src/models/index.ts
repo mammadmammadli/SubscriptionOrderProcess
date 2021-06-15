@@ -1,3 +1,8 @@
+export interface TAction<T = any> {
+	type: string;
+	payload?: Text;
+} 
+
 type TError = {
 	code: number;
 	message: string;
