@@ -1,15 +1,33 @@
-import { Button, Card, Checkbox, Container, FormControl, FormControlLabel, Grid, InputLabel, MenuItem, Select, Step, StepContent, StepLabel, Stepper, Tooltip, Typography } from '@material-ui/core';
+import { Button, Card, Container, TextField, Grid, Step, StepContent, StepLabel, Stepper, Typography, FormControlLabel, Checkbox, FormControl } from '@material-ui/core';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAllSubscriptionPlansAction } from './actions/subscriptionPlansActions';
 import { Async } from './components/Async';
-import { IAsync } from './models';
+import { IAsync, TForm } from './models';
 import { TAppState, TSubscriptionPlansReducer } from "./models/reducerModels";
 import { Skeleton } from '@material-ui/lab';
 import { makeStyles } from '@material-ui/core/styles';
 import { Controller, useForm } from 'react-hook-form';
+import { PlanForm } from './forms/PlanForm';
+// import { CardForm } from './forms/CardForm';
+import { isSuccess } from './utils';
+import { TermsAndCondition } from './components/TermsAndConditions';
+import { cloneDeep } from "lodash";
+import ReactInputMask from 'react-input-mask';
+import { CardForm } from './forms/CardForm';
 
 const useStyles = makeStyles({
+  cardDetail: {
+    display: "flex",
+    width: 166,
+
+    "& > div:first-child": {
+      flex: 2,
+    },
+    "& > div:last-child": {
+      flex: 1,
+    }
+  },
   card: {
     padding: "20px 0",
     display: "flex",
@@ -26,33 +44,91 @@ const useStyles = makeStyles({
   },
   formRow: {
     margin: '10px 0',
+
+    "& > button:first-child": {
+      marginRight: 10,
+    }
+  },
+  summaryCard: {
+    padding: 10,
+    marginBottom: 10,
   }
 });
 
 function App() {
   const classes = useStyles();
   const disaptch = useDispatch();
-  const { control, formState: { errors, isValid }, handleSubmit, watch } = useForm();
+  const { control, formState: { errors, touchedFields }, handleSubmit, watch, setError, clearErrors } = useForm<TForm>();
   const [activeStep, setActiveStep] = useState(0);
   const subscriptionPlansBranch = useSelector<TAppState, IAsync<TSubscriptionPlansReducer>>(
     selector => selector.subscriptionPlansReducer
   );
+  const [totalPrice, setTotalPrice] = useState(0);
+  const { month, gigabyte, cardCVV, cardExpirationDate, cardNumber } = watch();
+  const [showTermsAndCondition, toggleTermsAndCondition] = useState(false);
 
   useEffect(() => {
     disaptch(fetchAllSubscriptionPlansAction());
   }, [disaptch]);
 
-  const handleNext = () => {
-    if (isValid) {
-      setActiveStep(activeStep + 1);
+  useEffect(() => {
+    if (isSuccess(subscriptionPlansBranch)) {
+      const { data } = subscriptionPlansBranch;
+
+      const initialSelectedPlan = data!.subscription_plans.find(plan => plan.duration_months === month);
+      if (initialSelectedPlan) {
+        setTotalPrice(initialSelectedPlan?.price_usd_per_gb * gigabyte);
+      }
     }
+  }, [subscriptionPlansBranch, month, gigabyte]);
+
+  const handleNext = () => {
+    if (activeStep === 1) {
+      if (!cardExpirationDate) {
+        setError('cardExpirationDate', {
+          message: "Cannot be empty",
+        });
+      } else {
+        clearErrors('cardExpirationDate');
+      }
+
+      if (!cardCVV) {
+        setError('cardCVV', {
+          message: "Cannot be empty",
+        });
+      } else {
+        clearErrors('cardCVV');
+      }
+
+      if (!cardNumber) {
+        setError('cardNumber', {
+          message: "Cannot be empty",
+        });
+      } else {
+        clearErrors('cardNumber');
+      }
+
+      if (!cardCVV || !cardNumber || !cardExpirationDate) return;
+    }
+
+    setActiveStep(activeStep + 1);
   }
+
+  const handleBack = () => {
+    setActiveStep(activeStep - 1);
+  }
+
+  const _handleSubmit = () => {
+
+  }
+
+  const selectedPlan = subscriptionPlansBranch?.data?.subscription_plans.find(plan => plan.duration_months === month);
 
   return (
     <div>
       <Container>
         <Card className={classes.summary}>
-          <Typography variant="h5" align="right">Total: </Typography>
+          <Typography variant="h5" align="right">Total: {totalPrice}$ </Typography>
         </Card>
         <Stepper activeStep={activeStep} orientation="vertical">
           <Step>
@@ -60,114 +136,86 @@ function App() {
               Choose plan
             </StepLabel>
             <StepContent>
-              <div className={classes.formRow}>
-                <FormControl>
-                  <InputLabel>Month</InputLabel>
-                  <Controller
-                    defaultValue={12}
-                    name="month"
-                    control={control}
-                    rules={{
-                      required: true,
-                    }}
-                    render={({ field }) => (
-                      <Select {...field} style={{ width: 200 }}>
-                        <MenuItem value={3}>3 Months</MenuItem>
-                        <MenuItem value={6}>6 Months</MenuItem>
-                        <MenuItem value={12}>12 Months</MenuItem>
-                      </Select>
-                    )}
-                  />
-                </FormControl>
-                {errors.month && <span>This field is required</span>}
-              </div>
-              <div className={classes.formRow}>
-                <FormControl>
-                  <InputLabel>Gigabytes</InputLabel>
-                  <Controller
-                    render={({ field }) => (
-                      <Select {...field} style={{ width: 200 }}>
-                        <MenuItem value={5}>5 GB</MenuItem>
-                        <MenuItem value={10}>10 GB</MenuItem>
-                        <MenuItem value={50}>50 GB</MenuItem>
-                      </Select>
-                    )}
-                    defaultValue={5}
-                    name="gigabyte"
-                    control={control}
-                    rules={{
-                      required: true,
-                    }}
-                  />
-                </FormControl>
-              </div>
-              <div className={classes.formRow}>
-                <FormControl>
-                  <Controller
-                    render={({ field }) => (
-                      <Tooltip placement="right" title="10% discount">
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              {...field}
-                              color="primary"
-                            />
-                          }
-                          label="Upfront payment"
-                        />
-                      </Tooltip>
-                    )}
-                    defaultValue={false}
-                    name="upfrontpayment"
-                    control={control}
-                  />
-                </FormControl>
-              </div>
-              <div className={classes.formRow}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleSubmit(handleNext)}
-                >
-                  Next
-              </Button>
-              </div>
+              <PlanForm
+                errors={cloneDeep(errors)}
+                classes={classes}
+                control={control}
+                onNext={handleNext}
+              />
             </StepContent>
           </Step>
           <Step>
             <StepLabel>
-              Choose plan
+              Card details
             </StepLabel>
             <StepContent>
-              <Button
-                variant="contained"
-                color="default"
-                onClick={() => setActiveStep(activeStep - 1)}
-              >
-                Back
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmit(handleNext)}
-              >
-                Next
-              </Button>
+              <CardForm
+                errors={cloneDeep(errors)}
+                classes={classes}
+                control={control}
+                onNext={handleNext}
+                onBack={handleBack}
+              />
             </StepContent>
           </Step>
           <Step>
             <StepLabel>
-              Choose plan
+              Summary
             </StepLabel>
             <StepContent>
-              <div>1</div>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={() => setActiveStep(activeStep + 1)}
-              >
-                Next
-              </Button>
+              <Card className={classes.summaryCard}>
+                <div>
+                  <p>Total price: <span style={{ fontWeight: "bold" }}>{totalPrice}$</span></p>
+                </div>
+                <div>
+                  <p>Subscription period: <span style={{ fontWeight: "bold" }}>{selectedPlan?.duration_months} months</span></p>
+                </div>
+                <div>
+                  <p>Price per gb: <span style={{ fontWeight: "bold" }}>{selectedPlan?.price_usd_per_gb}$</span></p>
+                </div>
+              </Card>
+              <Card className={classes.summaryCard}>
+                <div className={classes.formRow}>
+                  <Controller
+                    control={control}
+                    name="mail"
+                    render={({ field }) => (
+                      <TextField {...field} label="Mail" />
+                    )}
+                  />
+                </div>
+                <div className={classes.formRow}>
+                  <FormControlLabel
+                    control={
+                      <Controller
+                        name="acceptTermAndCondition"
+                        control={control}
+                        render={({ field }) => (
+                          <Checkbox
+                            {...field}
+                            color="primary"
+                          />
+                        )}
+                      />
+                    }
+                    label={
+                      <>
+                        I read and agree to the <a href="#" onClick={() => toggleTermsAndCondition(true)}>Terms and Conditions</a>
+                      </>
+                    }
+                  />
+                </div>
+                <div className={classes.formRow}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    onClick={handleSubmit(_handleSubmit)}
+                  >
+                    Submit
+                  </Button>
+                </div>
+              </Card>
             </StepContent>
           </Step>
         </Stepper>
@@ -208,6 +256,10 @@ function App() {
           />
         </Grid>
       </Container>
+      <TermsAndCondition
+        isOpen={showTermsAndCondition}
+        onClose={() => toggleTermsAndCondition(false)}
+      />
     </div>
   );
 }

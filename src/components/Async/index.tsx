@@ -1,5 +1,6 @@
 import React from 'react';
 import { IAsync } from '../../models';
+import { isPending, isSuccess } from '../../utils';
 
 type TRenderer = () => React.ReactElement;
 
@@ -14,11 +15,11 @@ export function Async<T = {}>({
 	loadingRenderer,
 	successRenderer,
 }: Props<T>) {
-	const { data, status } = branch;
+	const { data } = branch;
 
-	if (status === "PENDING") {
+	if (isPending(branch)) {
 		return loadingRenderer();
-	} else if (status === "SUCCESS") {
+	} else if (isSuccess(branch)) {
 		return successRenderer(data!);
 	}
 
