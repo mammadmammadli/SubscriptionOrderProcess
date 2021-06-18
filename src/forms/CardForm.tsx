@@ -1,4 +1,4 @@
-import { Button, FormControl, Input, InputLabel, makeStyles, MenuItem, TextField } from '@material-ui/core';
+import { Button, FormControl, makeStyles, TextField } from '@material-ui/core';
 import React from 'react';
 import { Control, Controller, DeepMap, FieldError } from 'react-hook-form';
 import ReactInputMask from 'react-input-mask';
@@ -52,7 +52,13 @@ export const CardForm: React.FC<Props> = ({
 									mask="9999-9999-9999-9999"
 									placeholder="1234-5678-9012-3456"
 								>
-									{(props: any) => <TextField error={errors.cardNumber} label="Number" {...props} />}
+									{(props: any) => (
+										<TextField
+											error={errors.cardNumber}
+											helperText={errors.cardNumber && errors.cardNumber.message}
+											label="Number" {...props}
+										/>
+									)}
 								</ReactInputMask>
 							</>
 						)
@@ -72,7 +78,15 @@ export const CardForm: React.FC<Props> = ({
 									mask="99 / 99"
 									placeholder="MM YY"
 								>
-									{(props: any) => <TextField error={errors.cardExpirationDate} label="Expiration date" {...props} />}
+									{(props: any) => (
+										<TextField
+											error={errors.cardExpirationDate}
+											label="Expiration date"
+											helperText={errors.cardExpirationDate && errors.cardExpirationDate.message}
+											{...props}
+
+										/>
+									)}
 								</ReactInputMask>
 							)}
 						/>
@@ -90,7 +104,14 @@ export const CardForm: React.FC<Props> = ({
 									mask="999"
 									placeholder="123"
 								>
-									{(props: any) => <TextField error={errors.cardCVV} label="CVV" {...props} />}
+									{(props: any) => (
+										<TextField
+											{...props}
+											error={errors.cardCVV}
+											helperText={errors.cardCVV && errors.cardCVV.message}
+											label="CVV"
+										/>
+									)}
 								</ReactInputMask>
 							)}
 						/>

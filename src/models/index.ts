@@ -16,7 +16,7 @@ export interface IAsync<T> {
 	status: TStatus;
 }
 
-export type TForm = {
+export interface ISubscribePlanRq {
 	month: number;
 	gigabyte: number;
 	upfrontpayment: boolean;
@@ -24,5 +24,7 @@ export type TForm = {
 	cardExpirationDate: number;
 	cardCVV: number;
 	mail: string;
+}
+export interface TForm extends ISubscribePlanRq {
 	acceptTermAndCondition: boolean;
 }

@@ -1,4 +1,4 @@
-import { FormControl, FormControlLabel, Checkbox, Button, InputLabel, Select, MenuItem, Tooltip } from '@material-ui/core';
+import { FormControl, FormControlLabel, Checkbox, Button, InputLabel, Select, MenuItem, Tooltip, FormHelperText } from '@material-ui/core';
 import React from 'react';
 import { Control, Controller, DeepMap, FieldError } from 'react-hook-form';
 import { TForm } from '../models';
@@ -19,7 +19,7 @@ export const PlanForm: React.FC<Props> = ({
 	return (
 		<>
 			<div className={classes.formRow}>
-				<FormControl>
+				<FormControl error={Boolean(errors.month)}>
 					<InputLabel>Month</InputLabel>
 					<Controller
 						defaultValue={12}
@@ -36,11 +36,11 @@ export const PlanForm: React.FC<Props> = ({
 							</Select>
 						)}
 					/>
+					{errors.month && <FormHelperText>{errors.month.message}</FormHelperText>}
 				</FormControl>
-				{errors.month && <span>This field is required</span>}
 			</div>
 			<div className={classes.formRow}>
-				<FormControl>
+				<FormControl error={Boolean(errors.gigabyte)}>
 					<InputLabel>Gigabytes</InputLabel>
 					<Controller
 						render={({ field }) => (
@@ -57,6 +57,7 @@ export const PlanForm: React.FC<Props> = ({
 							required: true,
 						}}
 					/>
+					{errors.gigabyte && <FormHelperText>{errors.gigabyte.message}</FormHelperText>}
 				</FormControl>
 			</div>
 			<div className={classes.formRow}>

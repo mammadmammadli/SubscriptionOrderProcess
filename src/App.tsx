@@ -1,20 +1,19 @@
-import { Button, Card, Container, TextField, Grid, Step, StepContent, StepLabel, Stepper, Typography, FormControlLabel, Checkbox, FormControl } from '@material-ui/core';
+import { Button, Card, Container, TextField, Grid, Step, StepContent, StepLabel, Stepper, Typography, FormControlLabel, Checkbox, FormControl, FormHelperText, CircularProgress } from '@material-ui/core';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAllSubscriptionPlansAction } from './actions/subscriptionPlansActions';
 import { Async } from './components/Async';
-import { IAsync, TForm } from './models';
+import { IAsync, ISubscribePlanRq, TForm } from './models';
 import { TAppState, TSubscriptionPlansReducer } from "./models/reducerModels";
 import { Skeleton } from '@material-ui/lab';
 import { makeStyles } from '@material-ui/core/styles';
 import { Controller, useForm } from 'react-hook-form';
 import { PlanForm } from './forms/PlanForm';
-// import { CardForm } from './forms/CardForm';
 import { isSuccess } from './utils';
 import { TermsAndCondition } from './components/TermsAndConditions';
 import { cloneDeep } from "lodash";
-import ReactInputMask from 'react-input-mask';
 import { CardForm } from './forms/CardForm';
+import { submitSubscriptionPlan } from './services/subscriptionPlansServices';
 
 const useStyles = makeStyles({
   cardDetail: {
@@ -52,20 +51,32 @@ const useStyles = makeStyles({
   summaryCard: {
     padding: 10,
     marginBottom: 10,
+  },
+  info: {
+    color: "gray",
+    fontSize: 12,
+  },
+  termsandconditionsButton: {
+    border: 0,
+    background: "transparent",
+    padding: 0,
+    textDecoration:  "underline",
+    fontSize: 16,
   }
 });
 
 function App() {
   const classes = useStyles();
   const disaptch = useDispatch();
-  const { control, formState: { errors, touchedFields }, handleSubmit, watch, setError, clearErrors } = useForm<TForm>();
+  const { control, formState: { errors }, handleSubmit, watch, setError, clearErrors } = useForm<TForm>();
   const [activeStep, setActiveStep] = useState(0);
   const subscriptionPlansBranch = useSelector<TAppState, IAsync<TSubscriptionPlansReducer>>(
     selector => selector.subscriptionPlansReducer
   );
   const [totalPrice, setTotalPrice] = useState(0);
-  const { month, gigabyte, cardCVV, cardExpirationDate, cardNumber } = watch();
+  const { month, gigabyte, cardCVV, cardExpirationDate, cardNumber, upfrontpayment } = watch();
   const [showTermsAndCondition, toggleTermsAndCondition] = useState(false);
+  const [isFormLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     disaptch(fetchAllSubscriptionPlansAction());
@@ -83,6 +94,26 @@ function App() {
   }, [subscriptionPlansBranch, month, gigabyte]);
 
   const handleNext = () => {
+    if (activeStep === 0) {
+      if (!month) {
+        setError('month', {
+          message: "Cannot be empty",
+        });
+      } else {
+        clearErrors('month');
+      }
+
+      if (!gigabyte) {
+        setError('gigabyte', {
+          message: "Cannot be empty",
+        });
+      } else {
+        clearErrors('gigabyte');
+      }
+
+      if (!month || !gigabyte) return;
+    }
+
     if (activeStep === 1) {
       if (!cardExpirationDate) {
         setError('cardExpirationDate', {
@@ -118,8 +149,19 @@ function App() {
     setActiveStep(activeStep - 1);
   }
 
-  const _handleSubmit = () => {
+  const _handleSubmit = ({ cardCVV, cardExpirationDate, cardNumber, gigabyte, mail, month, upfrontpayment }: TForm) => {
+    const rqData: ISubscribePlanRq = {
+      cardCVV,
+      cardExpirationDate,
+      cardNumber: parseInt(cardNumber.toString().replace(/[-,(),\s]/g, "")),
+      gigabyte,
+      mail,
+      month,
+      upfrontpayment
+    };
+    setFormLoading(true);
 
+    submitSubscriptionPlan(rqData).finally(() => setFormLoading(false));
   }
 
   const selectedPlan = subscriptionPlansBranch?.data?.subscription_plans.find(plan => plan.duration_months === month);
@@ -128,7 +170,7 @@ function App() {
     <div>
       <Container>
         <Card className={classes.summary}>
-          <Typography variant="h5" align="right">Total: {totalPrice}$ </Typography>
+          <Typography variant="h5" align="right">Total: {upfrontpayment ? totalPrice - (totalPrice * 10 / 100) : totalPrice}$</Typography>
         </Card>
         <Stepper activeStep={activeStep} orientation="vertical">
           <Step>
@@ -165,7 +207,9 @@ function App() {
             <StepContent>
               <Card className={classes.summaryCard}>
                 <div>
-                  <p>Total price: <span style={{ fontWeight: "bold" }}>{totalPrice}$</span></p>
+                  <p>Total price: <span style={{ fontWeight: "bold" }}>{upfrontpayment ? totalPrice - (totalPrice * 10 / 100) : totalPrice}$
+                  <span className={classes.info}> (Upfront payment will reduce 10% of total price)</span>
+                  </span></p>
                 </div>
                 <div>
                   <p>Subscription period: <span style={{ fontWeight: "bold" }}>{selectedPlan?.duration_months} months</span></p>
@@ -179,40 +223,69 @@ function App() {
                   <Controller
                     control={control}
                     name="mail"
+                    rules={{
+                      required: { value: true, message: "Cannot be empty" },
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: "invalid email address"
+                      }
+                    }}
                     render={({ field }) => (
-                      <TextField {...field} label="Mail" />
+                      <TextField
+                        {...field}
+                        label="Mail"
+                        error={Boolean(errors.mail)}
+                        helperText={errors.mail && errors.mail.message}
+                      />
                     )}
                   />
                 </div>
                 <div className={classes.formRow}>
-                  <FormControlLabel
-                    control={
-                      <Controller
-                        name="acceptTermAndCondition"
-                        control={control}
-                        render={({ field }) => (
-                          <Checkbox
-                            {...field}
-                            color="primary"
-                          />
-                        )}
-                      />
-                    }
-                    label={
-                      <>
-                        I read and agree to the <a href="#" onClick={() => toggleTermsAndCondition(true)}>Terms and Conditions</a>
-                      </>
-                    }
-                  />
+                  <FormControl required error={Boolean(errors.acceptTermAndCondition)} component="fieldset">
+                    <FormControlLabel
+                      control={
+                        <Controller
+                          name="acceptTermAndCondition"
+                          control={control}
+                          rules={{ required: { value: true, message: "Accept terms and condition" }, validate: (value: boolean) => value }}
+                          render={({ field }) => (
+                            <Checkbox
+                              {...field}
+                              color="primary"
+                            />
+                          )}
+                        />
+                      }
+                      label={
+                        <>
+                          I read and agree to the <button className={classes.termsandconditionsButton} onClick={() => toggleTermsAndCondition(true)}>Terms and Conditions</button>
+                        </>
+                      }
+                    />
+                    {Boolean(errors.acceptTermAndCondition) && (
+                      <FormHelperText>{errors.acceptTermAndCondition?.message}</FormHelperText>
+                    )}
+                  </FormControl>
                 </div>
                 <div className={classes.formRow}>
                   <Button
                     type="submit"
                     variant="contained"
+                    color="default"
+                    onClick={handleBack}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="contained"
                     color="primary"
                     onClick={handleSubmit(_handleSubmit)}
+                    style={{ minWidth: 71 }}
                   >
-                    Submit
+                    {isFormLoading ? (
+                      <CircularProgress color="inherit" size="1" style={{ height: 24, width: 24 }} />
+                    ) : <>Submit</>}
                   </Button>
                 </div>
               </Card>
